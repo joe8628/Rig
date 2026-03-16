@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RIG_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 RIG_VERSION="1.0.0"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
