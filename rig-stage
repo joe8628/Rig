@@ -237,9 +237,10 @@ GITIGNORE
       "$cb_install" || { err "codebase-context install failed"; exit 4; }
     fi
     if command -v ccindex &>/dev/null; then
-      # Pipe "n" to skip ccindex's interactive post-commit hook prompt —
-      # Rig manages its own pre-commit hook separately.
-      echo "n" | ccindex init || { err "ccindex init failed (exit $?)"; exit 4; }
+      # Pipe answers to ccindex's two interactive prompts:
+      #   1. "Add repo map reference to CLAUDE.md?" → y
+      #   2. "Install git post-commit hook?"        → n (Rig manages its own hook)
+      printf "y\nn\n" | ccindex init || { err "ccindex init failed (exit $?)"; exit 4; }
       ok "Codebase index       → initialised (.codebase-context/)"
     else
       log "WARNING: ccindex not found on PATH — skipping index init"
