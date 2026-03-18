@@ -62,7 +62,9 @@ cmd_upgrade() {
 
   if [[ -d ".git" ]]; then
     log "Updating project install..."
-    cmd_install --force --no-codebase-index
+    # Run the freshly-pulled script as a subprocess so we use the latest
+    # cmd_install — not the old version loaded into this bash process's memory.
+    bash "$RIG_DIR/rig-stage" install --force --no-codebase-index
   else
     skip "Project update (not inside a project directory)"
   fi
