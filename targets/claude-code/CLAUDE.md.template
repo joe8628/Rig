@@ -2,6 +2,7 @@
 @HANDOFF.md
 @CONVENTIONS.md
 @AGENTS.md
+@.claude/skills/registry.md
 
 # <Project Name>
 
@@ -16,6 +17,17 @@
 
 Read `CONVENTIONS.md` before writing or reviewing any code. All coding decisions
 must follow the rules defined there.
+
+## Skills
+
+Project skills live in `.claude/skills/`. The registry above (`@.claude/skills/registry.md`)
+lists all available skills and their triggers — when a conversation matches a trigger, invoke
+the skill with the `Skill` tool before responding.
+
+To add a skill:
+1. Write a `.md` file in `.claude/skills/` with frontmatter (`version`, `updated`) and sections (`## Purpose`, `## Trigger`, `## Process`)
+2. Run `bash .claude/hooks/rig-skill-check.sh` — it detects unregistered skills
+3. Add an entry to `.claude/skills/registry.md` following the existing format
 
 ## Agent Registry
 
