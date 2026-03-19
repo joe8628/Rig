@@ -93,6 +93,37 @@ _log_substitutions() {
   log "[dry-run]   <what this project does>   → ${desc:-(unchanged)}"
 }
 
+# ── F-001: .gitignore maintenance ────────────────────────────────────────────
+
+_ensure_gitignore_entries() {
+  local updated=false
+  if ! grep -qF "Rig session files" .gitignore 2>/dev/null; then
+    cat >> .gitignore <<'GITIGNORE'
+
+# Rig session files — ephemeral, not committed
+SCRATCHPAD.md
+.rig-verified
+
+# Codebase context — local vector DB, not committed
+.codebase-context/chroma/
+GITIGNORE
+    updated=true
+  else
+    # Block already present — ensure individual entries exist (upgrade path)
+    if ! grep -qF ".rig-verified" .gitignore 2>/dev/null; then
+      printf '\n.rig-verified\n' >> .gitignore
+      updated=true
+    fi
+    if ! grep -qF ".codebase-context/chroma/" .gitignore 2>/dev/null; then
+      printf '\n.codebase-context/chroma/\n' >> .gitignore
+      updated=true
+    fi
+  fi
+  if $updated; then
+    ok ".gitignore           → updated"
+  fi
+}
+
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 cmd_version() { echo "rig-stage $RIG_VERSION"; }
@@ -182,6 +213,8 @@ cmd_update() {
     local dest="${pair##*:}"
     skip "$dest (user config — use install --force to overwrite)"
   done
+
+  _ensure_gitignore_entries
 
   adapter_post_install
   # adapter_post_install already clears .rig-verified; make explicit here too
@@ -350,17 +383,8 @@ cmd_install() {
   # Step 8: Append .gitignore entries
   if $dry_run; then
     log "[dry-run] Append .gitignore entries"
-  elif ! grep -qF "Rig session files" .gitignore 2>/dev/null; then
-    cat >> .gitignore <<'GITIGNORE'
-
-# Rig session files — ephemeral, not committed
-SCRATCHPAD.md
-.rig-verified
-
-# Codebase context — local vector DB, not committed
-.codebase-context/chroma/
-GITIGNORE
-    ok ".gitignore           → updated"
+  else
+    _ensure_gitignore_entries
   fi
 
   # Step 9: Install pre-commit hook

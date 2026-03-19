@@ -332,6 +332,30 @@ exit_code=$(cd "$dir" && "$RIG_DIR/rig-stage" update 2>&1; echo $?)
 assert_eq "update without git exits 2" "2" "$(cd "$dir" && "$RIG_DIR/rig-stage" update 2>/dev/null; echo $?)"
 rm -rf "$dir"
 
+# ── B-002: .gitignore upgrade path ────────────────────────────────────────────
+
+# 31. update adds .rig-verified to .gitignore when block exists but entry is missing
+echo ""
+echo "-- gitignore-upgrade-rig-verified (B-002) --"
+dir=$(setup_fixture python-project)
+(cd "$dir" && "$RIG_DIR/rig-stage" install --no-codebase-index 2>&1) || true
+# Simulate pre-F-007 state: remove .rig-verified from .gitignore
+sed -i '/.rig-verified/d' "$dir/.gitignore"
+assert_not_contains ".rig-verified absent before fix" ".rig-verified" "$(cat "$dir/.gitignore")"
+(cd "$dir" && "$RIG_DIR/rig-stage" update 2>&1) || true
+assert_contains ".rig-verified added by update" ".rig-verified" "$(cat "$dir/.gitignore")"
+cleanup "$dir"
+
+# 32. install adds .rig-verified to .gitignore when block exists but entry is missing
+echo ""
+echo "-- gitignore-install-rig-verified (B-002) --"
+dir=$(setup_fixture python-project)
+(cd "$dir" && "$RIG_DIR/rig-stage" install --no-codebase-index 2>&1) || true
+sed -i '/.rig-verified/d' "$dir/.gitignore"
+(cd "$dir" && "$RIG_DIR/rig-stage" install --no-codebase-index 2>&1) || true
+assert_contains ".rig-verified re-added by install" ".rig-verified" "$(cat "$dir/.gitignore")"
+cleanup "$dir"
+
 # ── F-007: health check (rig-health-check.sh) ─────────────────────────────────
 
 # 31. rig-health-check.sh is installed into .claude/hooks/
