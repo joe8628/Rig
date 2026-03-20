@@ -1,4 +1,4 @@
-# Rig — Pending Features & Bugs
+# Loadout Depot — Pending Features & Bugs
 
 > Structured backlog of planned functionality and confirmed bugs.
 > Status values: `planned` | `in-progress` | `done`.
@@ -41,9 +41,9 @@ Concrete steps, files to change, and any known constraints.
 **Source:** Spec §5.3 vs §12 contradiction; discovered 2026-03-18
 
 #### Problem
-`rig-stage install` (and therefore `rig-stage upgrade`) always overwrites all three session template files — `SCRATCHPAD.md`, `HANDOFF.md`, and `DECISIONS.md` — by copying the blank templates over them unconditionally (rig-stage lines 191–200).
+`loadout-depot install` (and therefore `loadout-depot upgrade`) always overwrites all three session template files — `SCRATCHPAD.md`, `HANDOFF.md`, and `DECISIONS.md` — by copying the blank templates over them unconditionally (loadout-depot lines 191–200).
 
-This is correct for `SCRATCHPAD.md`, which is ephemeral and gitignored. It is destructive for `HANDOFF.md` and `DECISIONS.md`, which spec §12 explicitly states are committed to git and accumulate across sessions as the cross-session context persistence layer. Running `rig-stage upgrade` silently wipes the entire agent handoff history.
+This is correct for `SCRATCHPAD.md`, which is ephemeral and gitignored. It is destructive for `HANDOFF.md` and `DECISIONS.md`, which spec §12 explicitly states are committed to git and accumulate across sessions as the cross-session context persistence layer. Running `loadout-depot upgrade` silently wipes the entire agent handoff history.
 
 The spec contradicts itself: §5.3 groups all three as "always overwrite", while §12 and §14 treat HANDOFF.md and DECISIONS.md as persistent committed files.
 
@@ -55,7 +55,7 @@ The spec contradicts itself: §5.3 groups all three as "always overwrite", while
 | `DECISIONS.md` | Skip if exists — accumulates across sessions |
 
 #### Implementation notes
-- In `rig-stage` step 7, split the session template loop into two cases: always-overwrite for `SCRATCHPAD.md.template`, skip-if-exists for `HANDOFF.md.template` and `DECISIONS.md.template`.
+- In `loadout-depot` step 7, split the session template loop into two cases: always-overwrite for `SCRATCHPAD.md.template`, skip-if-exists for `HANDOFF.md.template` and `DECISIONS.md.template`.
 - Apply the same `[[ -f "$dest" ]]` guard used for config files (step 6).
 - `--force` should not override this — HANDOFF.md and DECISIONS.md should never be silently wiped, even with `--force`. Document this explicitly.
 - Update spec §5.3 table to reflect the corrected per-file behaviour.
@@ -72,10 +72,10 @@ The spec contradicts itself: §5.3 groups all three as "always overwrite", while
 **Source:** Spec §6.4; discovered during session 2026-03-18
 
 #### Problem
-`rig-stage install` copies `CLAUDE.md.template` to `CLAUDE.md` with a plain `cp`, leaving all `<...>` placeholders verbatim. The project name, language/toolchain, and description are never filled in. Users must edit the file manually after every fresh install.
+`loadout-depot install` copies `CLAUDE.md.template` to `CLAUDE.md` with a plain `cp`, leaving all `<...>` placeholders verbatim. The project name, language/toolchain, and description are never filled in. Users must edit the file manually after every fresh install.
 
 #### Expected behaviour
-After copying the template, `rig-stage install` detects project metadata and substitutes known placeholders before writing the file:
+After copying the template, `loadout-depot install` detects project metadata and substitutes known placeholders before writing the file:
 
 | Placeholder | Detection strategy |
 |---|---|
@@ -86,14 +86,14 @@ After copying the template, `rig-stage install` detects project metadata and sub
 Placeholders that cannot be auto-detected are left as-is so the user knows what still needs filling.
 
 #### Implementation notes
-- Add a `substitute_placeholders()` function in `rig-stage` that runs `sed -i` passes after the `cp` in step 6 of the install sequence.
+- Add a `substitute_placeholders()` function in `loadout-depot` that runs `sed -i` passes after the `cp` in step 6 of the install sequence.
 - Reuse the language detection logic already in `hooks/pre-commit` — extract it to a shared helper or duplicate the three-condition check.
 - Only substitute in `CLAUDE.md`; other config templates (`CONVENTIONS.md`, `AGENTS.md`) have no auto-detectable placeholders.
 - Must not run in `--dry-run` mode (print what would be substituted instead).
 
 ---
 
-### F-002 — `rig-stage list-targets` subcommand
+### F-002 — `loadout-depot list-targets` subcommand
 
 **Status:** done
 **Priority:** P2
@@ -101,10 +101,10 @@ Placeholders that cannot be auto-detected are left as-is so the user knows what 
 **Source:** Spec §7.3
 
 #### Problem
-The spec states that adding a new target requires adding it to the `rig-stage list-targets` output, but the subcommand does not exist. The current `rig-stage list` only shows agents and skills. There is no way to discover available targets from the CLI.
+The spec states that adding a new target requires adding it to the `loadout-depot list-targets` output, but the subcommand does not exist. The current `loadout-depot list` only shows agents and skills. There is no way to discover available targets from the CLI.
 
 #### Expected behaviour
-`rig-stage list-targets` prints all directories under `targets/` that contain an `adapter.sh`, along with their `ADAPTER_NAME` and a one-line description sourced from `targets/<name>/README.md`.
+`loadout-depot list-targets` prints all directories under `targets/` that contain an `adapter.sh`, along with their `ADAPTER_NAME` and a one-line description sourced from `targets/<name>/README.md`.
 
 ```
 Available targets:
@@ -114,14 +114,14 @@ Available targets:
 ```
 
 #### Implementation notes
-- Add `cmd_list_targets()` in `rig-stage` and wire it to the `list-targets` case in the dispatch block.
+- Add `cmd_list_targets()` in `loadout-depot` and wire it to the `list-targets` case in the dispatch block.
 - Source each `adapter.sh` in a subshell to read `ADAPTER_NAME` safely without polluting the parent environment.
 - Extract the description from the first non-heading line of the target's `README.md`.
 - Update `usage()` to document the new subcommand.
 
 ---
 
-### F-003 — `rig-stage update` — refresh agents/skills without clobbering user config
+### F-003 — `loadout-depot update` — refresh agents/skills without clobbering user config
 
 **Status:** done
 **Priority:** P2
@@ -129,22 +129,22 @@ Available targets:
 **Source:** Spec §15 open questions
 
 #### Problem
-`rig-stage upgrade` pulls the latest Rig source and then calls `install --force`, which overwrites user-edited config files (`CLAUDE.md`, `CONVENTIONS.md`, `AGENTS.md`, `settings.json`). There is no way to pull updated agent and skill prompts without risking loss of project-specific customisations.
+`loadout-depot upgrade` pulls the latest Loadout Depot source and then calls `install --force`, which overwrites user-edited config files (`CLAUDE.md`, `CONVENTIONS.md`, `AGENTS.md`, `settings.json`). There is no way to pull updated agent and skill prompts without risking loss of project-specific customisations.
 
 #### Expected behaviour
-`rig-stage update` refreshes only the files that Rig owns and versions (agent `.md` files, skill `.md` files) while leaving all config files untouched regardless of `--force`.
+`loadout-depot update` refreshes only the files that Loadout Depot owns and versions (agent `.md` files, skill `.md` files) while leaving all config files untouched regardless of `--force`.
 
 ```
-[rig-stage] Updating agents and skills only (config files preserved)...
-[rig-stage] ✓ Agents updated  → .claude/agents/ (9 files)
-[rig-stage] ✓ Skills updated  → .claude/skills/ (10 files)
-[rig-stage] ~ Skipped         → CLAUDE.md (user config — use install --force to overwrite)
+[loadout-depot] Updating agents and skills only (config files preserved)...
+[loadout-depot] ✓ Agents updated  → .claude/agents/ (9 files)
+[loadout-depot] ✓ Skills updated  → .claude/skills/ (10 files)
+[loadout-depot] ~ Skipped         → CLAUDE.md (user config — use install --force to overwrite)
 ```
 
 #### Implementation notes
-- Add `cmd_update()` in `rig-stage` that runs steps 4–5 of the install sequence (copy agents and skills) but skips step 6 (config templates) unconditionally.
+- Add `cmd_update()` in `loadout-depot` that runs steps 4–5 of the install sequence (copy agents and skills) but skips step 6 (config templates) unconditionally.
 - Accepts `--target` flag; defaults to `claude-code`.
-- `rig-stage upgrade` should call `update` instead of `install --force` so that pulling a new Rig version does not destroy user config.
+- `loadout-depot upgrade` should call `update` instead of `install --force` so that pulling a new Loadout Depot version does not destroy user config.
 
 ---
 
@@ -156,10 +156,10 @@ Available targets:
 **Source:** Spec §7; stub at `targets/openai/`
 
 #### Problem
-The `targets/openai/` directory contains only a `README.md` stub. No `adapter.sh` or config templates exist. `rig-stage install --target openai` exits with error code 1 (missing `adapter.sh`).
+The `targets/openai/` directory contains only a `README.md` stub. No `adapter.sh` or config templates exist. `loadout-depot install --target openai` exits with error code 1 (missing `adapter.sh`).
 
 #### Expected behaviour
-`rig-stage install --target openai` fully installs agent and skill prompts adapted for the OpenAI Codex/Assistants tooling, with appropriate config file equivalents for that platform.
+`loadout-depot install --target openai` fully installs agent and skill prompts adapted for the OpenAI Codex/Assistants tooling, with appropriate config file equivalents for that platform.
 
 #### Implementation notes
 - Requires research into OpenAI's equivalent of `CLAUDE.md`, agent invocation conventions, and tool permission config format.
@@ -176,10 +176,10 @@ The `targets/openai/` directory contains only a `README.md` stub. No `adapter.sh
 **Source:** Spec §7; stub at `targets/gemini/`
 
 #### Problem
-The `targets/gemini/` directory contains only a `README.md` stub. No `adapter.sh` or config templates exist. `rig-stage install --target gemini` exits with error code 1 (missing `adapter.sh`).
+The `targets/gemini/` directory contains only a `README.md` stub. No `adapter.sh` or config templates exist. `loadout-depot install --target gemini` exits with error code 1 (missing `adapter.sh`).
 
 #### Expected behaviour
-`rig-stage install --target gemini` fully installs agent and skill prompts adapted for the Gemini CLI tooling.
+`loadout-depot install --target gemini` fully installs agent and skill prompts adapted for the Gemini CLI tooling.
 
 #### Implementation notes
 - Same adapter interface contract as F-004.
@@ -242,252 +242,102 @@ On session start (before the user's first prompt is processed), a hook:
 
 ---
 
-### F-008 — OpenSpec: project directory initialisation
+### F-008 — OpenSpec: `loadout-depot openspec-init` wrapper
 
 **Type:** feature
-**Status:** planned
+**Status:** deferred
 **Priority:** P1
-**Target version:** v1.2
-**Source:** OpenSpec spec; https://github.com/Fission-AI/OpenSpec
+**Target version:** v1.3
+**Source:** https://github.com/Fission-AI/OpenSpec — reviewed 2026-03-20
+
+> ⚠️ **Implementation approach revised.** Original plan assumed Loadout Depot would scaffold the `openspec/` tree itself. After reviewing Fission-AI's docs, the OpenSpec CLI (`@fission-ai/openspec`) already handles this via `openspec init --tools claude`. Loadout Depot's role is a thin wrapper, not a reimplementation.
 
 #### Problem
-Rig has no mechanism to scaffold the `openspec/` directory tree that OpenSpec commands expect to exist. Running any `opsx:*` skill on a fresh project fails because neither `openspec/specs/` nor `openspec/changes/` exist.
+After `loadout-depot install`, users have no automated path to set up OpenSpec in their project. They must manually install the `openspec` CLI and run `openspec init --tools claude` themselves.
 
 #### Expected behaviour
-`rig-stage install` (or a new `rig-stage openspec-init` subcommand) creates the following skeleton when the user opts in:
-
-```
-openspec/
-├── specs/           # Living source-of-truth; one subdirectory per domain
-├── changes/         # One subdirectory per in-flight change
-│   └── archive/     # Completed changes land here after /opsx:archive
-└── config.yaml      # Optional project-level OpenSpec configuration
-```
-
-`config.yaml` is written from a template with sensible defaults (schema profile, archive date format).
+`loadout-depot openspec-init`:
+1. Checks that the `openspec` CLI is installed (`openspec --version`). If not, prints install instructions and exits.
+2. Runs `openspec init --tools claude` in the current project directory.
+3. Optionally pre-populates `openspec/config.yaml` with project metadata (name, language) detected by the same logic used for CLAUDE.md substitution (F-001).
 
 #### Implementation notes
-- Add `openspec-init` subcommand to `rig-stage` that creates the tree and copies `config.yaml.template`.
-- Wire it into `install` behind an `--openspec` flag so existing installs are unaffected.
-- Add `openspec/changes/archive/` to `.gitignore` if the user wants archives excluded; leave `openspec/specs/` tracked.
-- Template: `targets/claude-code/openspec/config.yaml.template`.
+- Do NOT recreate the directory scaffold ourselves — delegate entirely to `openspec init`.
+- Soft dependency: warn and skip if `openspec` is not installed (same pattern as `ccindex`).
+- Add `openspec` to the `env-setup` skill as an optional dependency with install instructions.
+- Open question: should `--openspec` flag on `install` trigger this automatically, or keep it a standalone subcommand?
+- Full open questions documented in `docs/superpowers/plans/2026-03-19-openspec-skills.md`.
 
 ---
 
-### F-009 — OpenSpec: `opsx-propose` skill
+### F-009 — OpenSpec: register OpenSpec-generated skills in registry
 
 **Type:** feature
-**Status:** planned
+**Status:** deferred
 **Priority:** P1
-**Target version:** v1.2
-**Source:** OpenSpec core profile; `/opsx:propose`
+**Target version:** v1.3
+**Source:** https://github.com/Fission-AI/OpenSpec/blob/main/docs/supported-tools.md — reviewed 2026-03-20
+
+> ⚠️ **Implementation approach revised.** Original plan assumed Loadout Depot would write these skills from scratch. After reviewing Fission-AI's docs, `openspec init --tools claude` generates all `/opsx:*` skills automatically into `.claude/skills/openspec-*/SKILL.md`. Loadout Depot should register them, not rewrite them.
 
 #### Problem
-There is no Rig skill that initiates a spec-driven change. Without `/opsx:propose`, the OpenSpec workflow cannot start — the change folder and its four required artifacts (`proposal.md`, `specs/`, `design.md`, `tasks.md`) are never created.
+After `openspec init --tools claude` runs, it installs skills like `.claude/skills/openspec-propose/SKILL.md`. The `loadout-depot-skill-check.sh` validator flags these as "unregistered" because they don't appear in `skills/registry.md`.
 
 #### Expected behaviour
-Invoking `/opsx:propose <feature-name>` (or the trigger phrase "propose a change for…"):
-
-1. Creates `openspec/changes/<feature-name>/` with four artifacts in dependency order:
-   - `proposal.md` — rationale, scope, problem statement, capability inventory
-   - `specs/<domain>.md` — delta spec using ADDED / MODIFIED / REMOVED sections with RFC 2119 language
-   - `design.md` — technical decisions, alternatives, risks, migration plan (omitted for trivial changes)
-   - `tasks.md` — implementation checklist as `- [ ]` items grouped by dependency order
-2. Prints a summary of what was created and suggests `/opsx:apply` as the next step.
+`skills/registry.md` includes entries for all OpenSpec-generated skills (propose, explore, apply, archive — core profile minimum). The skill-check does not WARN about them.
 
 #### Implementation notes
-- Skill file: `.claude/skills/opsx-propose.md`
-- Trigger: `opsx:propose`, "propose a change", "new openspec change"
-- Artifact schema: requirements in specs use SHALL/MUST/SHOULD; scenarios use Given/When/Then under `####` headings (four hashtags exactly)
-- The dependency chain `proposal → specs → design → tasks` must be respected; each step reads its predecessor before writing
+- Registry entries point at OpenSpec-generated paths (e.g., `openspec-propose/SKILL.md`), not hand-written files.
+- Alternatively, teach `loadout-depot-skill-check.sh` to exclude skills under a configurable prefix (e.g., `openspec-*`) from the "unregistered" warning.
+- Must be done after F-008 so we know the exact skill names OpenSpec generates.
+- Full open questions in `docs/superpowers/plans/2026-03-19-openspec-skills.md`.
 
 ---
 
-### F-010 — OpenSpec: `opsx-explore` skill
+### F-010 — OpenSpec: wire `openspec update` into `loadout-depot update`
 
 **Type:** feature
-**Status:** planned
+**Status:** deferred
 **Priority:** P2
-**Target version:** v1.2
-**Source:** OpenSpec core profile; `/opsx:explore`
+**Target version:** v1.3
+**Source:** https://github.com/Fission-AI/OpenSpec/blob/main/docs/cli.md — reviewed 2026-03-20
+
+> ⚠️ **Implementation approach revised.** F-010 through F-016 were originally individual skills to write by hand. All are now collapsed into this single integration feature.
 
 #### Problem
-When requirements are unclear or the codebase is unfamiliar, jumping straight to `/opsx:propose` produces shallow proposals. There is no Rig skill for the investigative phase that precedes requirement writing.
+`openspec update` refreshes the Claude Code skills after OpenSpec CLI upgrades. Users who run `loadout-depot update` to refresh their Loadout Depot skills will not automatically get updated OpenSpec skills.
 
 #### Expected behaviour
-`/opsx:explore` (triggered by "explore before proposing" or "investigate this area"):
-
-1. Reads existing `openspec/specs/` to surface relevant prior requirements
-2. Analyses the codebase for affected modules, existing patterns, and integration points
-3. Outputs a structured exploration report covering: current behaviour, open questions, risks, and suggested scope for the proposal
-4. Does **not** create any files — output is conversational, feeding into a subsequent `/opsx:propose`
+`loadout-depot update` calls `openspec update` if the `openspec` CLI is installed, so OpenSpec skills stay current alongside Loadout Depot skills.
 
 #### Implementation notes
-- Skill file: `.claude/skills/opsx-explore.md`
-- Uses `search_codebase` and `get_repo_map` MCP tools when available
-- Output is Markdown printed to the conversation — no file writes
-- Skill preamble must state: "Do not write any specs or tasks yet; this is analysis only"
+- Soft: skip silently if `openspec` is not installed.
+- Run after the Loadout Depot skill copy step, not before.
 
 ---
 
-### F-011 — OpenSpec: `opsx-apply` skill
+### F-011 — OpenSpec: `env-setup` skill update for openspec dependency
 
 **Type:** feature
-**Status:** planned
-**Priority:** P1
-**Target version:** v1.2
-**Source:** OpenSpec core profile; `/opsx:apply`
-
-#### Problem
-After a change folder is created by `/opsx:propose`, there is no skill to read `tasks.md` and drive implementation. Without `/opsx:apply`, the spec-to-code link is manual and the checklist goes unused.
-
-#### Expected behaviour
-`/opsx:apply` (triggered by "apply the openspec tasks" or "implement the change"):
-
-1. Locates the active change folder (most recently modified, or disambiguates if multiple are open)
-2. Reads `tasks.md` and works through unchecked items in dependency order
-3. After each completed task, updates the `- [ ]` to `- [x]` in `tasks.md`
-4. Respects existing Rig skills (TDD, code-review) during implementation — does not bypass them
-5. On completion, prints a summary and suggests `/opsx:verify`
-
-#### Implementation notes
-- Skill file: `.claude/skills/opsx-apply.md`
-- Active change detection: scan `openspec/changes/` for directories without a date-prefixed name (not yet archived)
-- Task parsing: read `- [ ]` lines; skip `- [x]` lines
-- Integrates with `superpowers:test-driven-development` skill — invoke TDD workflow per task
-- Does not modify `specs/` or `proposal.md`; only touches source files and `tasks.md`
-
----
-
-### F-012 — OpenSpec: `opsx-archive` skill
-
-**Type:** feature
-**Status:** planned
-**Priority:** P1
-**Target version:** v1.2
-**Source:** OpenSpec core profile; `/opsx:archive`
-
-#### Problem
-Completed changes accumulate in `openspec/changes/` with no mechanism to finalise them. Delta specs are never merged into the main `openspec/specs/` tree, so the living spec drifts from actual behaviour over time.
-
-#### Expected behaviour
-`/opsx:archive` (triggered by "archive the openspec change" or "finalise this change"):
-
-1. Reads the delta `specs/` inside the active change folder
-2. Merges ADDED/MODIFIED/REMOVED sections into the matching files under `openspec/specs/` (creates domain files if absent; removes requirements marked REMOVED)
-3. Moves the change folder to `openspec/changes/archive/<YYYY-MM-DD>-<feature-name>/`
-4. Prints a merge summary showing which spec files were touched
-
-#### Implementation notes
-- Skill file: `.claude/skills/opsx-archive.md`
-- Date prefix: ISO 8601 (`YYYY-MM-DD`) sourced from system date
-- Merge is additive for ADDED, in-place edit for MODIFIED, deletion for REMOVED
-- After move, the skill suggests: `git add openspec/ && git commit -m "spec: archive <feature-name>"`
-- Conflict detection: if a requirement ID already exists in main specs as MODIFIED by another in-flight change, surface a warning rather than silently overwriting
-
----
-
-### F-013 — OpenSpec: `opsx-verify` skill
-
-**Type:** feature
-**Status:** planned
+**Status:** deferred
 **Priority:** P2
-**Target version:** v1.2
-**Source:** OpenSpec expanded profile; `/opsx:verify`
+**Target version:** v1.3
+**Source:** https://github.com/Fission-AI/OpenSpec/blob/main/docs/installation.md — reviewed 2026-03-20
 
 #### Problem
-There is no Rig skill that validates whether an implementation actually satisfies its OpenSpec requirements. The gap between spec and code is invisible until review or production.
+The `env-setup` skill does not mention OpenSpec as an optional dependency. Users don't know they need Node.js ≥ 20.19 and `npm install -g @fission-ai/openspec` to use the `/opsx:*` workflow.
 
 #### Expected behaviour
-`/opsx:verify` performs three checks and reports pass/fail for each:
-
-| Dimension | What is checked |
-|---|---|
-| **Completeness** | All `tasks.md` items are `[x]`; all requirements have at least one test covering a scenario |
-| **Correctness** | Implementation matches the intent of each SHALL/MUST requirement in `specs/` |
-| **Coherence** | Code structure reflects the design decisions in `design.md` (naming, module boundaries, patterns) |
-
-Outputs a structured report. Exits non-zero (for CI use) if any check fails.
+The `env-setup` skill includes an **Optional: OpenSpec** section documenting the install command and pointing to `loadout-depot openspec-init`.
 
 #### Implementation notes
-- Skill file: `.claude/skills/opsx-verify.md`
-- Completeness: mechanical — parse `tasks.md` for unchecked items; grep test files for scenario keywords
-- Correctness and Coherence: LLM-driven analysis reading spec, design, and implementation files side by side
-- Invokes `superpowers:verification-before-completion` before reporting success
+- Node.js ≥ 20.19.0 is required by the OpenSpec CLI.
+- Install: `npm install -g @fission-ai/openspec`
+- Verify: `openspec --version`
 
 ---
 
-### F-014 — OpenSpec: `opsx-ff` fast-forward skill
-
-**Type:** feature
-**Status:** planned
-**Priority:** P2
-**Target version:** v1.2
-**Source:** OpenSpec expanded profile; `/opsx:ff`
-
-#### Problem
-For small, well-understood features, going through `/opsx:propose` step by step is more ceremony than the change warrants. There is no "batch" path through the artifact pipeline.
-
-#### Expected behaviour
-`/opsx:ff <feature-name>` (triggered by "fast-forward openspec" or "opsx ff"):
-
-Runs the full artifact pipeline in one pass — `proposal.md → specs/ → design.md → tasks.md` — without pausing for user review between steps. Prints all four artifacts at the end for review before implementation begins.
-
-#### Implementation notes
-- Skill file: `.claude/skills/opsx-ff.md`
-- Appropriate only when scope is clear; skill preamble prompts the LLM to assess scope before proceeding
-- Internally calls the same logic as `opsx-propose` but batches the writes
-
----
-
-### F-015 — OpenSpec: `opsx-continue` skill
-
-**Type:** feature
-**Status:** planned
-**Priority:** P2
-**Target version:** v1.2
-**Source:** OpenSpec expanded profile; `/opsx:continue`
-
-#### Problem
-When a session ends mid-change, the next session has no skill to resume from where the previous session stopped. The user must manually inspect the change folder and figure out which artifact to work on next.
-
-#### Expected behaviour
-`/opsx:continue` (triggered by "continue the openspec change" or "resume openspec"):
-
-1. Reads the active change folder
-2. Detects the furthest completed artifact (`proposal.md` exists? specs written? `design.md` present? `tasks.md` complete?)
-3. Resumes from the next incomplete step
-4. If all artifacts exist but tasks remain, delegates to `opsx-apply`
-
-#### Implementation notes
-- Skill file: `.claude/skills/opsx-continue.md`
-- Detection heuristic: check file existence; for `tasks.md` check for unchecked items
-- Prints a one-line status before resuming: "Resuming from: design.md (proposal and specs complete)"
-
----
-
-### F-016 — OpenSpec: `opsx-bulk-archive` skill
-
-**Type:** feature
-**Status:** planned
-**Priority:** P3
-**Target version:** v1.2
-**Source:** OpenSpec expanded profile; `/opsx:bulk-archive`
-
-#### Problem
-When multiple changes finish in the same sprint, archiving them one at a time is tedious and risks spec conflicts going undetected until the last archive operation.
-
-#### Expected behaviour
-`/opsx:bulk-archive` archives all changes whose `tasks.md` are fully checked, with cross-change conflict detection before writing anything:
-
-1. Scans all non-archived change folders; selects those with all tasks `[x]`
-2. Runs conflict analysis on their delta specs (same requirement modified by two changes)
-3. Reports conflicts and aborts if any are found; otherwise archives all selected changes in one pass
-
-#### Implementation notes
-- Skill file: `.claude/skills/opsx-bulk-archive.md`
-- Conflict detection: build a map of `(domain, requirement-id) → [change-name]`; flag any ID appearing in more than one in-flight delta
-- Archive order: alphabetical by change name for reproducibility
+> **F-012 through F-016 retired.** The original features (opsx-archive, opsx-verify, opsx-ff, opsx-continue, opsx-bulk-archive as hand-written skills) are superseded by the OpenSpec CLI and its generated skills. All functionality is provided by `openspec archive`, `openspec validate`, and the `/opsx:*` commands installed by `openspec init`. No Loadout Depot skills need to be written for these.
 
 ---
 
@@ -503,12 +353,8 @@ When multiple changes finish in the same sprint, archiving them one at a time is
 | F-005 | feature | Gemini CLI target adapter | planned | P3 | v3.0 |
 | F-006 | feature | Auto-load session files via `@file` imports | done | P0 | v1.1 |
 | F-007 | feature | Session-start hook in `settings.json.template` | done | P0 | v1.1 |
-| F-008 | feature | OpenSpec: project directory initialisation | planned | P1 | v1.2 |
-| F-009 | feature | OpenSpec: `opsx-propose` skill | planned | P1 | v1.2 |
-| F-010 | feature | OpenSpec: `opsx-explore` skill | planned | P2 | v1.2 |
-| F-011 | feature | OpenSpec: `opsx-apply` skill | planned | P1 | v1.2 |
-| F-012 | feature | OpenSpec: `opsx-archive` skill | planned | P1 | v1.2 |
-| F-013 | feature | OpenSpec: `opsx-verify` skill | planned | P2 | v1.2 |
-| F-014 | feature | OpenSpec: `opsx-ff` fast-forward skill | planned | P2 | v1.2 |
-| F-015 | feature | OpenSpec: `opsx-continue` skill | planned | P2 | v1.2 |
-| F-016 | feature | OpenSpec: `opsx-bulk-archive` skill | planned | P3 | v1.2 |
+| F-008 | feature | OpenSpec: `openspec-init` wrapper subcommand | deferred | P1 | v1.3 |
+| F-009 | feature | OpenSpec: register generated skills in registry | deferred | P1 | v1.3 |
+| F-010 | feature | OpenSpec: wire `openspec update` into `loadout-depot update` | deferred | P2 | v1.3 |
+| F-011 | feature | OpenSpec: `env-setup` skill update for openspec dependency | deferred | P2 | v1.3 |
+| F-012–016 | feature | OpenSpec: hand-written opsx skills | retired | — | — |
